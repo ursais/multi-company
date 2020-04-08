@@ -113,5 +113,7 @@ class AccountMove(models.Model):
                         self.env['account.move'].sudo().with_context(
                             force_company=company).create(
                             dedicated_companies_vals[company])
-                dedicated_company_move.post()
+                # TODO: Determine the conditions to auto-post this entry
+                # Left in draft to set analytic information
+                # dedicated_company_move.post()
         return res
