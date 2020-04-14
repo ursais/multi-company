@@ -17,7 +17,7 @@ class AccountInvoiceLineDistribution(models.Model):
                 self.env.user.company_id.id)
 
     percent = fields.Float(string="Percentage", default=0.00)
-    amount = fields.Float(string="Amount", compute='_compute_amount')
+    amount = fields.Float(string="Amount", default=0.00)
     invoice_line_id = fields.Many2one('account.invoice.line',
                                       string="Bill Line", readonly=True,
                                       required=True, ondelete="cascade")
@@ -29,7 +29,14 @@ class AccountInvoiceLineDistribution(models.Model):
         [('line_company_uniq', 'UNIQUE (invoice_line_id, company_id)',
           'You cannot have the same company twice in a distribution!')]
 
-    @api.depends('percent', 'invoice_line_id.price_subtotal')
-    def _compute_amount(self):
-        for dist_id in self:
-            dist_id.amount = dist_id.invoice_line_id.price_subtotal*dist_id.percent/100
+    @api.onchange('percent', 'invoice_line_id.price_subtotal')
+    def onchange_percent_total(self):
+            for dist_id in self:
+                dist_id.amount = dist_id.invoice_line_id.\
+                    price_subtotal*dist_id.percent/100
+
+    @api.onchange('amount', 'invoice_line_id.price_subtotal')
+    def onchange_amount_total(self):
+            for dist_id in self:
+                dist_id.percent = dist_id.amount/dist_id.\
+                    invoice_line_id.price_subtotal*100
