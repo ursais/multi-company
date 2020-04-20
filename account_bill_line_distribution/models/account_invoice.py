@@ -70,6 +70,7 @@ class AccountInvoice(models.Model):
                         # care of already
                         if company.id != inv.company_id.id:
                             to_move_vals = {
+                                'date': inv.date_invoice,
                                 'journal_id':
                                     company.due_fromto_payment_journal_id.id,
                                 'state': 'draft',
