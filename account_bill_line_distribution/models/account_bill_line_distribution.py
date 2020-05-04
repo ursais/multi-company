@@ -31,15 +31,15 @@ class AccountInvoiceLineDistribution(models.Model):
 
     @api.onchange('percent', 'invoice_line_id.price_subtotal')
     def onchange_percent_total(self):
-            for dist_id in self:
-                dist_id.amount = dist_id.invoice_line_id.\
-                    price_subtotal*dist_id.percent/100
+        for dist_id in self:
+            dist_id.amount = dist_id.invoice_line_id.\
+                price_subtotal*dist_id.percent/100
 
     @api.onchange('amount', 'invoice_line_id.price_subtotal')
     def onchange_amount_total(self):
-            for dist_id in self:
-                if dist_id.invoice_line_id.price_subtotal != 0.00:
-                    dist_id.percent = dist_id.amount/dist_id.\
-                        invoice_line_id.price_subtotal*100
-                else:
-                    dist_id.percent = 0.00
+        for dist_id in self:
+            if dist_id.invoice_line_id.price_subtotal != 0.00:
+                dist_id.percent = dist_id.amount/dist_id.\
+                    invoice_line_id.price_subtotal*100
+            else:
+                dist_id.percent = 0.00
