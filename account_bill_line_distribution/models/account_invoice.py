@@ -78,13 +78,13 @@ class AccountInvoice(models.Model):
                                         inv.company_id.partner_id.id,
                                     'inv_line': invoice_line_id.id})
 
-                    # Create Journal Entry in the current company
-                    if from_lines:
-                        from_move = account_move.sudo().create(from_move_value)
-                        for line in from_lines:
-                            line.update({'move_id': from_move.id})
-                        self.env['account.move.line'].create(from_lines)
-                        from_move.post()
+                # Create Journal Entry in the current company
+                if from_lines:
+                    from_move = account_move.sudo().create(from_move_value)
+                    for line in from_lines:
+                        line.update({'move_id': from_move.id})
+                    self.env['account.move.line'].create(from_lines)
+                    from_move.post()
 
                     # Due To's
                     for company in companies:
