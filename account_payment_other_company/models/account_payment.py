@@ -105,7 +105,6 @@ class account_register_payments(models.TransientModel):
         Many2one('res.company', related='journal_id.company_id',
                  string='Company', readonly=True)
 
-
     @api.multi
     @api.onchange('journal_id', 'payment_type')
     def onchange_show_other_journal(self):
@@ -140,6 +139,6 @@ class account_register_payments(models.TransientModel):
             return rec
         invoices = self.env['account.invoice'].browse(active_ids)
         # Check all invoices are for suppliers
-        if all(invoice.partner_id.supplier == True for invoice in invoices):
+        if all(invoice.partner_id.supplier for invoice in invoices):
             rec.update({'partner_type': 'supplier'})
         return rec
