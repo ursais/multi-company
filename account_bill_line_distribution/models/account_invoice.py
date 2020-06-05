@@ -37,31 +37,54 @@ class AccountInvoice(models.Model):
                         amount = invoice_line_id.price_subtotal * \
                             distrib.percent / 100
                         if distrib.company_id != self.company_id:
-                            # Debit line for the amount due from the other
-                            # company
-                            from_lines.append({
-                                'name': invoice_line_id.name,
-                                'debit': amount,
-                                'account_id':
-                                    inv.company_id.due_from_account_id.id,
-                                'partner_id':
-                                    distrib.company_id.partner_id.id})
-                            # Credit line for the current company
-                            from_lines.append({
-                                'name': invoice_line_id.name,
-                                'credit': amount,
-                                'account_id':
-                                    invoice_line_id.account_id.id,
-                                'partner_id':
-                                    inv.company_id.partner_id.id})
+                            if inv.type == 'in_invoice':
+                                # Debit line for the amount due from the other
+                                # company
+                                from_lines.append({
+                                    'name': invoice_line_id.name,
+                                    'debit': amount,
+                                    'account_id':
+                                        inv.company_id.due_from_account_id.id,
+                                    'partner_id':
+                                        distrib.company_id.partner_id.id,
+                                    'inv_line': invoice_line_id.id})
+                                # Credit line for the current company
+                                from_lines.append({
+                                    'name': invoice_line_id.name,
+                                    'credit': amount,
+                                    'account_id':
+                                        invoice_line_id.account_id.id,
+                                    'partner_id':
+                                        inv.company_id.partner_id.id,
+                                    'inv_line': invoice_line_id.id})
+                            elif inv.type == 'in_refund':
+                                # Credit line for the amount due from
+                                # the other company
+                                from_lines.append({
+                                    'name': invoice_line_id.name,
+                                    'credit': amount,
+                                    'account_id':
+                                        inv.company_id.due_from_account_id.id,
+                                    'partner_id':
+                                        distrib.company_id.partner_id.id,
+                                    'inv_line': invoice_line_id.id})
+                                # Debit line for the current company
+                                from_lines.append({
+                                    'name': invoice_line_id.name,
+                                    'debit': amount,
+                                    'account_id':
+                                        invoice_line_id.account_id.id,
+                                    'partner_id':
+                                        inv.company_id.partner_id.id,
+                                    'inv_line': invoice_line_id.id})
 
-                    # Create Journal Entry in the current company
-                    if from_lines:
-                        from_move = account_move.sudo().create(from_move_value)
-                        for line in from_lines:
-                            line.update({'move_id': from_move.id})
-                        self.env['account.move.line'].create(from_lines)
-                        from_move.post()
+                # Create Journal Entry in the current company
+                if from_lines:
+                    from_move = account_move.sudo().create(from_move_value)
+                    for line in from_lines:
+                        line.update({'move_id': from_move.id})
+                    self.env['account.move.line'].create(from_lines)
+                    from_move.post()
 
                     # Due To's
                     for company in companies:
@@ -70,6 +93,7 @@ class AccountInvoice(models.Model):
                         # care of already
                         if company.id != inv.company_id.id:
                             to_move_vals = {
+                                'date': inv.date_invoice,
                                 'journal_id':
                                     company.due_fromto_payment_journal_id.id,
                                 'state': 'draft',
@@ -78,35 +102,70 @@ class AccountInvoice(models.Model):
                             # Credit company "Due_To" Account with debit
                             # amount from its previous "Due from" Account entry
                             for line in from_lines:
-                                if line['partner_id'] == company.partner_id.id:
-                                    to_lines.append({
-                                        'name': line['name'],
-                                        'credit': line['debit'],
-                                        'account_id': company.
-                                        due_to_account_id.id,
-                                        'partner_id': inv.
-                                        company_id.partner_id.id
-                                    })
-                                    line_account = invoice_line_id.account_id
-                                    # Debit Account of invoice line
-                                    new_account = self.\
-                                        env['account.account'].\
-                                        sudo().search([('code', '=',
-                                                        line_account.code),
-                                                       ('company_id', '=',
-                                                        company.id)], limit=1)
-                                    if not new_account:
-                                        raise UserError(_("No corresponding \
-                                                          Account for code %s\
-                                                           in Company %s") %
-                                                        (line_account.code,
-                                                         company.name))
-                                    to_lines.append({
-                                        'name': line['name'],
-                                        'debit': line['debit'],
-                                        'account_id': new_account.id,
-                                        'partner_id': inv.partner_id.id
-                                    })
+                                if inv.type == 'in_invoice':
+                                    if line['partner_id'] == company.partner_id.id:
+                                        to_lines.append({
+                                            'name': line['name'],
+                                            'credit': line['debit'],
+                                            'account_id': company.
+                                            due_to_account_id.id,
+                                            'partner_id': inv.
+                                            company_id.partner_id.id
+                                        })
+                                        line_account = self.\
+                                            env['account.invoice.line'].\
+                                                browse(line['inv_line']).account_id
+                                        # Debit Account of invoice line
+                                        new_account = self.\
+                                            env['account.account'].\
+                                            sudo().search([('code', '=',
+                                                            line_account.code),
+                                                        ('company_id', '=',
+                                                            company.id)], limit=1)
+                                        if not new_account:
+                                            raise UserError(_("No corresponding \
+                                                            Account for code %s\
+                                                            in Company %s") %
+                                                            (line_account.code,
+                                                                company.name))
+                                        to_lines.append({
+                                            'name': line['name'],
+                                            'debit': line['debit'],
+                                            'account_id': new_account.id,
+                                            'partner_id': inv.partner_id.id
+                                        })
+                                elif inv.type == 'in_refund':
+                                    if line['partner_id'] == company.partner_id.id:
+                                        to_lines.append({
+                                            'name': line['name'],
+                                            'debit': line['credit'],
+                                            'account_id': company.
+                                            due_to_account_id.id,
+                                            'partner_id': inv.
+                                            company_id.partner_id.id
+                                        })
+                                        line_account = self.\
+                                            env['account.invoice.line'].\
+                                                browse(line['inv_line']).account_id
+                                        # Debit Account of invoice line
+                                        new_account = self.\
+                                            env['account.account'].\
+                                            sudo().search([('code', '=',
+                                                            line_account.code),
+                                                        ('company_id', '=',
+                                                            company.id)], limit=1)
+                                        if not new_account:
+                                            raise UserError(_("No corresponding \
+                                                            Account for code %s\
+                                                            in Company %s") %
+                                                            (line_account.code,
+                                                                company.name))
+                                        to_lines.append({
+                                            'name': line['name'],
+                                            'credit': line['credit'],
+                                            'account_id': new_account.id,
+                                            'partner_id': inv.partner_id.id
+                                        })
                             # Create Journal Entries in the other companies
                             if to_lines:
                                 to_move = account_move.sudo().\
@@ -121,4 +180,25 @@ class AccountInvoice(models.Model):
                                     with_context(force_company=company.id).\
                                     create(to_lines)
                                 to_move.post()
+        return res
+
+    @api.multi
+    @api.returns('self')
+    def refund(self, date_invoice=None, date=None,
+               description=None, journal_id=None):
+        # account/models/account_invoice.py line 1536 
+        # clears the distributions in the original VB 
+        dist_obj = self.env['account.invoice.line.distribution']
+        res = super().refund(date_invoice, date, description, journal_id)
+        index = 0
+        for line_id in self.invoice_line_ids:
+            for dist_id in line_id.distribution_ids:
+                if dist_id.company_id != res.invoice_line_ids[index].distribution_ids.company_id:
+                    dist_obj.create({
+                        'company_id': dist_id.company_id.id,
+                        'percent': dist_id.percent,
+                        'amount': dist_id.amount,
+                        'invoice_line_id': res.invoice_line_ids[index].id})
+                    res.invoice_line_ids[index]._onchange_distribution_ids_percent()
+            index += 1
         return res
