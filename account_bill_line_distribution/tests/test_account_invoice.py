@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Open Source Integrators
+# Copyright (C) 2020 Open Source Integrators
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 from odoo import _
@@ -84,8 +84,10 @@ class TestAccountInvoice(SavepointCase):
             'invoice_line_id': self.invoice_obj.invoice_line_ids[0].id
         }]
         self.env['account.invoice.line.distribution'].create(dist_vals)
-        dist1 = self.invoice_obj.invoice_line_ids[0].distribution_ids[0]
-        dist2 = self.invoice_obj.invoice_line_ids[0].distribution_ids[1]
+        dist1 = self.invoice_obj.\
+            invoice_line_ids[0].distribution_ids[0]
+        dist2 = self.invoice_obj.\
+            invoice_line_ids[0].distribution_ids[1]
 
         # Both Distributions are Equal
         dist1.write({'amount': 225.00, 'percent': 50.00})
@@ -98,9 +100,11 @@ class TestAccountInvoice(SavepointCase):
 
         self.assertEquals(dist1.percent, 40.00)
 
-        self.invoice_obj.invoice_line_ids[0]._onchange_distribution_ids_amount()
-        self.invoice_obj.invoice_line_ids[0]._onchange_distribution_ids_percent()
-        
+        self.invoice_obj.invoice_line_ids[0].\
+            _onchange_distribution_ids_amount()
+        self.invoice_obj.invoice_line_ids[0].\
+            _onchange_distribution_ids_percent()
+
         self.assertEquals(dist2.percent, 60.00)
         self.assertEquals(dist2.amount, 270.00)
 
@@ -109,12 +113,13 @@ class TestAccountInvoice(SavepointCase):
         dist1.onchange_percent_total()
         self.assertEquals(dist1.amount, 67.50)
 
-        self.invoice_obj.invoice_line_ids[0]._onchange_distribution_ids_amount()
-        self.invoice_obj.invoice_line_ids[0]._onchange_distribution_ids_percent()
+        self.invoice_obj.invoice_line_ids[0].\
+            _onchange_distribution_ids_amount()
+        self.invoice_obj.invoice_line_ids[0].\
+            _onchange_distribution_ids_percent()
 
         self.assertEquals(dist2.percent, 85.00)
         self.assertEquals(dist2.amount, 382.50)
-
 
     def test_distribution_account_move(self):
         dist_vals = [{
@@ -124,40 +129,49 @@ class TestAccountInvoice(SavepointCase):
             'invoice_line_id': self.vendor_bill_obj.invoice_line_ids[0].id
         }]
         self.env['account.invoice.line.distribution'].create(dist_vals)
-        self.vendor_bill_obj.invoice_line_ids[0].distribution_ids[1].write({'company_id': self.company_b.id})
+        self.vendor_bill_obj.invoice_line_ids[0].\
+            distribution_ids[1].write({'company_id': self.company_b.id})
         self.vendor_bill_obj.action_invoice_open()
 
         # Get
         due_to_from_move_ids = self.env['account.move'].sudo().\
             search([('ref', 'like', self.vendor_bill_obj.number)])
 
-        #|---------------------|-----------------|
-        #| Account |  Partner  | Debit  | Credit |
-        #|---------------------|-----------------|
-        #| Due To  | Company B | 0.00   | 225.00 | 
-        #|---------------------|-----------------|
-        #| VB Line | Company B | 225.00 |  0.00  | 
-        #|---------------------|-----------------|
+        # |---------------------|-----------------|
+        # | Account |  Partner  | Debit  | Credit |
+        # |---------------------|-----------------|
+        # | Due To  | Company B | 0.00   | 225.00 |
+        # |---------------------|-----------------|
+        # | VB Line | Company B | 225.00 |  0.00  |
+        # |---------------------|-----------------|
 
-        #|--------------------|-----------------|
-        #|Account |  Partner  | Debit  | Credit |
-        #|--------------------|-----------------|
-        #|VB Line | Company A |  0.00  | 225.00 |
-        #|--------------------|-----------------|
-        #|Due From| Company A | 225.00 |  0.00  |
-        #|--------------------|-----------------|
+        # |--------------------|-----------------|
+        # |Account |  Partner  | Debit  | Credit |
+        # |--------------------|-----------------|
+        # |VB Line | Company A |  0.00  | 225.00 |
+        # |--------------------|-----------------|
+        # |Due From| Company A | 225.00 |  0.00  |
+        # |--------------------|-----------------|
 
-        self.assertEquals(due_to_from_move_ids[0].amount, due_to_from_move_ids[1].amount)
+        self.assertEquals(due_to_from_move_ids[0].amount,
+                          due_to_from_move_ids[1].amount)
         for move_id in due_to_from_move_ids:
             if move_id.company_id != self.vendor_bill_obj.company_id:
                 for line_id in move_id.line_ids:
                     if line_id.debit == 0.00:
-                        self.assertEquals(line_id.account_id.id, self.company_b.due_to_account_id.id)
+                        self.assertEquals(line_id.account_id.id,
+                                          self.company_b.due_to_account_id.id)
                     else:
-                        self.assertEquals(line_id.account_id.code, self.vendor_bill_obj.invoice_line_ids[0].account_id.code)
+                        self.assertEquals(line_id.account_id.code,
+                                          self.vendor_bill_obj.
+                                          invoice_line_ids[0].account_id.code)
             else:
                 for line_id in move_id.line_ids:
                     if line_id.debit == 0.00:
-                        self.assertEquals(line_id.account_id.code, self.vendor_bill_obj.invoice_line_ids[0].account_id.code)
+                        self.assertEquals(line_id.account_id.code,
+                                          self.vendor_bill_obj.
+                                          invoice_line_ids[0].account_id.code)
                     else:
-                        self.assertEquals(line_id.account_id.id, self.company_a.due_from_account_id.id)
+                        self.assertEquals(line_id.account_id.id,
+                                          self.company_a.
+                                          due_from_account_id.id)
